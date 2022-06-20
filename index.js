@@ -142,19 +142,27 @@ async function main() {
   const tokeninfo4 = await tQueryFcn(tokenId);
   console.log("Token total Supply: ", tokeninfo4.totalSupply.toNumber());
 
-  // Execute a contract function (associate)
+  //* Execute a contract function (associate)
 
-  const alicePrivateKey = PrivateKey.generateECDSA();
-  console.log("Alice's private key: ", alicePrivateKey.toString());
-  const alicePublicKey = alicePrivateKey.publicKey;
-  console.log("Alice's public key: ", alicePublicKey.toString());
+  //* create or import alice keys
 
-  const accountCreateTx = await new AccountCreateTransaction()
-    .setKey(alicePrivateKey)
-    .execute(client);
+  // const alicePrivateKey = PrivateKey.generateECDSA();
+  // console.log("Alice's private key: ", alicePrivateKey.toString());
+  // const alicePublicKey = alicePrivateKey.publicKey;
+  // console.log("Alice's public key: ", alicePublicKey.toString());
 
-  const aliceAccountCreateReceipt = await accountCreateTx.getReceipt(client);
-  const aliceAccountId = aliceAccountCreateReceipt.accountId;
+  // const accountCreateTx = await new AccountCreateTransaction()
+  //   .setKey(alicePrivateKey)
+  //   .execute(client);
+
+  // const aliceAccountCreateReceipt = await accountCreateTx.getReceipt(client);
+  // const aliceAccountId = aliceAccountCreateReceipt.accountId;
+  // console.log("Alice's account ID: ", aliceAccountId.toString());
+
+  //* option 2 to import alice keys
+  const alicePrivateKey = PrivateKey.fromString(process.env.ALICE_PRIVATE_KEY);
+  const aliceAccountId = AccountId.fromString(process.env.ALICE_ACCOUNT_ID);
+
   const aliceSol = aliceAccountId.toSolidityAddress();
 
   const contractAssociateTx = await new ContractExecuteTransaction()
