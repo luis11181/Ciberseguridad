@@ -6,69 +6,106 @@ import "./App.css";
 //! correr con ($env:HTTPS = "true") -and (npm start) en powershell para hacerlo con https
 function App() {
   //* codigo para corer wallet hedera
-  // let hashconnect: HashConnect;
+  let hashconnect: HashConnect;
 
-  // let saveData = {
-  //   topic: "",
-  //   pairingString: "",
-  //   privateKey: "",
-  //   pairedWalletData: null,
-  //   pairedAccounts: [],
-  // };
+  let saveData = {
+    topic: "",
+    pairingString: "",
+    privateKey: "",
+    pairedWalletData: null,
+    pairedAccounts: [],
+  };
 
-  // let appMetadata: HashConnectTypes.AppMetadata = {
-  //   name: "dApp Example",
-  //   description: "An example hedera dApp",
-  //   icon: "https://absolute.url/to/icon.png",
-  // };
+  let appMetadata: HashConnectTypes.AppMetadata = {
+    name: "dApp Example",
+    description: "An example hedera dApp",
+    icon: "https://absolute.url/to/icon.png",
+  };
 
-  // let loadLocalData = (): boolean => {
-  //   let foundData = localStorage.getItem("hashconnectData");
+  let availableExtensions: HashConnectTypes.WalletMetadata[] = [];
 
-  //   if (foundData) {
-  //     saveData = JSON.parse(foundData);
-  //     return true;
-  //   } else return false;
-  // };
+  let loadLocalData = (): boolean => {
+    let foundData = localStorage.getItem("hashconnectData");
 
-  // console.log("inicializo");
+    if (foundData) {
+      saveData = JSON.parse(foundData);
+      return true;
+    } else return false;
+  };
 
-  // (async function () {
-  //   //create the hashconnect instance
-  //   hashconnect = new HashConnect();
+  console.log("inicializo");
 
-  //   if (!loadLocalData()) {
-  //     //first init and store the private for later
-  //     let initData = await hashconnect.init(appMetadata);
-  //     saveData.privateKey = initData.privKey;
+  (async function () {
+    //create the hashconnect instance
+    hashconnect = new HashConnect();
 
-  //     //then connect, storing the new topic for later
-  //     const state = await hashconnect.connect();
-  //     saveData.topic = state.topic;
+    // hashconnect.foundExtensionEvent.on((data) => {
+    //   availableExtensions.push(data);
+    //   console.log("Found extension", data);
+    // });
 
-  //     console.log("conecto nueva wallet");
-  //     console.log("state", state);
+    if (!loadLocalData()) {
+      //first init and store the private for later
+      let initData = await hashconnect.init(appMetadata);
+      saveData.privateKey = initData.privKey;
 
-  //     //generate a pairing string, which you can display and generate a QR code from
-  //     saveData.pairingString = hashconnect.generatePairingString(
-  //       state,
-  //       "testnet",
-  //       true
-  //     );
+      //then connect, storing the new topic for later
+      const state = await hashconnect.connect();
+      saveData.topic = state.topic;
 
-  //     //find any supported local wallets
-  //     hashconnect.findLocalWallets();
-  //     console.log("localwallets:", hashconnect.findLocalWallets());
+      console.log("conecto nueva wallet");
+      console.log("state", state);
 
-  //     //hashconnect.connectToLocalWallet(pairingString, extensionMetadata);
+      //generate a pairing string, which you can display and generate a QR code from
+      saveData.pairingString = hashconnect.generatePairingString(
+        state,
+        "testnet",
+        true
+      );
 
-  //     console.log("finalizo conecion uneva con wallet");
-  //   } else {
-  //     //use loaded data for initialization + connection
-  //     await hashconnect.init(appMetadata, saveData.privateKey);
-  //     await hashconnect.connect(saveData.topic, saveData.pairedWalletData!); // da error si le entra null de argumento
-  //   }
-  // })();
+      //find any supported local wallets
+      hashconnect.findLocalWallets();
+      console.log("localwallets:", hashconnect.findLocalWallets());
+
+      hashconnect.foundExtensionEvent.once((walletMetadata) => {
+        //do something with metadata
+      });
+
+      console.log("saved data", saveData);
+
+      hashconnect.acknowledgeMessageEvent.once((acknowledgeData) => {
+        //do something with acknowledge response data
+        console.log("acknowledge function");
+      });
+
+      hashconnect.connectToLocalWallet(saveData.pairingString);
+
+      console.log("saved data2", saveData);
+
+      // hashconnect.pairingEvent.once((pairingData) => {
+      //   //example
+      //   pairingData.accountIds.forEach((id) => {
+      //     if (pairedAccounts.indexOf(id) == -1) pairedAccounts.push(id);
+      //   });
+      // });
+
+      //! repetir los pasos anteriores como si ya hubiese una conexion previa
+
+      await hashconnect.init(appMetadata, saveData.privateKey);
+      await hashconnect.connect(saveData.topic, saveData.pairedWalletData!); // da error si le entra null de argumento
+
+      console.log("saved data3", saveData);
+
+      //find any supported local wallets
+      console.log("localwallets2:", hashconnect.findLocalWallets());
+
+      console.log("finalizo conexion uneva con wallet");
+    } else {
+      //use loaded data for initialization + connection
+      await hashconnect.init(appMetadata, saveData.privateKey);
+      await hashconnect.connect(saveData.topic, saveData.pairedWalletData!); // da error si le entra null de argumento
+    }
+  })();
 
   return (
     <div className="App">
