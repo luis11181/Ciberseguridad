@@ -1,6 +1,6 @@
 import React from "react";
 import logo from "./logo.svg";
-import { HashConnect, HashConnectTypes, MessageTypes } from "hashconnect";
+import { HashConnect, HashConnectTypes } from "hashconnect";
 import "./App.css";
 //import trx from "./trx.json";
 import {
@@ -9,19 +9,24 @@ import {
   PrivateKey,
   Transaction,
   ContractId,
+  AccountBalanceQuery,
   ContractCreateTransaction,
   ContractFunctionParameters,
   TokenUpdateTransaction,
   ContractExecuteTransaction,
   AccountCreateTransaction,
 } from "@hashgraph/sdk";
+import Stack from "@mui/material/Stack";
+import Button from "@mui/material/Button";
+import { Paper, Typography } from "@mui/material";
 
 //! correr con ($env:HTTPS = "true") -and (npm start) en powershell para hacerlo con https
 function App() {
+  let [balance, setbalance] = React.useState("0");
+  let [tresurybalance, settresurybalance] = React.useState("0");
+  let [alicebalance, setalicebalance] = React.useState("0");
   //* codigo para corer wallet hedera
   let hashconnect: HashConnect;
-
-  console.log(process.env.REACT_APP_ALICE_ACCOUNT_ID);
 
   const aliceAccountId = AccountId.fromString(
     process.env.REACT_APP_ALICE_ACCOUNT_ID!
@@ -32,6 +37,11 @@ function App() {
     process.env.REACT_APP_MY_PRIVATE_KEY!
   );
   const client = Client.forTestnet().setOperator(operatorId, operatorKey);
+
+  console.log("contractId as string", process.env.REACT_APP_CONTRACTID!);
+
+  const contractId = ContractId.fromString(process.env.REACT_APP_CONTRACTID!); // este dato tampoco se pasaria si se envia toda la transaccion
+  console.log("contractId", contractId);
 
   let saveData: {
     topic: string;
@@ -76,42 +86,12 @@ function App() {
     localStorage.setItem("hashconnectData", data);
   };
 
-  let transaccionfnc = async () => {
-    //const trx = Transaction.fromBytes();
-    const contractId = ContractId.fromString("0.0.46041674");
-    // set provider user to make the transaction
-    let provider = hashconnect.getProvider(
-      "testnet",
-      saveData.topic,
-      saveData.pairedAccounts[0]
-    );
-
-    let balance = await provider.getAccountBalance(saveData.pairedAccounts[0]);
-    console.log(balance);
-
-    let signer = hashconnect.getSigner(provider);
-
-    const contractTransferTxClient = new ContractExecuteTransaction()
-      .setContractId(contractId)
-      .setGas(3000000)
-      .setFunction(
-        "tokenTransfer",
-        new ContractFunctionParameters()
-          .addAddress(operatorId.toSolidityAddress())
-          .addAddress(aliceAccountId.toSolidityAddress())
-          .addInt8(1)
-      )
-      .freezeWith(client);
-
-    let res = await contractTransferTxClient.executeWithSigner(signer);
-
-    console.log(res);
-
-    // //Get the transaction ID
-    // const txId = submitTx.transactionId.toString();
-    // //Print the transaction ID to the console
-    // console.log("The transaction ID " + txId);
-  };
+  async function queryAccountBalance(accountId: any, tokenId: any) {
+    let balanceCheckTx = await new AccountBalanceQuery()
+      .setAccountId(accountId)
+      .execute(client);
+    return balanceCheckTx.tokens!._map.get(tokenId.toString());
+  }
 
   console.log("inicializo");
 
@@ -119,6 +99,7 @@ function App() {
     //create the hashconnect instance
     hashconnect = new HashConnect();
 
+    //* busca si la extension esta disponible y actua respecto a eso
     // hashconnect.foundExtensionEvent.on((data) => {
     //   availableExtensions.push(data);
     //   console.log("Found extension", data);
@@ -170,7 +151,7 @@ function App() {
       //   });
       // });
 
-      //! repetir los pasos anteriores como si ya hubiese una conexion previa
+      //* se conecta con la wallet y le pide que escoja cual desea usar, paspo que realmente configura todo
 
       hashconnect.pairingEvent.on((data) => {
         console.log("Paired with wallet", data);
@@ -198,13 +179,143 @@ function App() {
       await hashconnect.init(appMetadata, saveData.privateKey);
       await hashconnect.connect(saveData.topic, saveData.pairedWalletData!); // da error si le entra null de argumento
       console.log("savedData", saveData);
+
+      //! codigo para ejecutar los balances apenas corre el navegador
+      let provider = hashconnect.getProvider(
+        "testnet",
+        saveData.topic,
+        saveData.pairedAccounts[0]
+      );
+
+      let balance = await provider.getAccountBalance(
+        saveData.pairedAccounts[0]
+      );
+      setbalance(balance.hbars.toString());
+
+      const aliceBalance = await queryAccountBalance(
+        aliceAccountId,
+        process.env.REACT_APP_TOKENID!
+      );
+
+      const treasuryBalance = await queryAccountBalance(
+        operatorId,
+        process.env.REACT_APP_TOKENID!
+      );
+      console.log(
+        `- Treasury balance: ${treasuryBalance} units of token ${process.env
+          .REACT_APP_TOKENID!}`
+      );
+      console.log(
+        `- Alice balance: ${aliceBalance} units of token ${process.env
+          .REACT_APP_TOKENID!} \n`
+      );
+
+      setalicebalance(aliceBalance!.toString());
+
+      settresurybalance(treasuryBalance!.toString());
     }
   })();
 
+  //* funcion que ejecuta el NFT, lo transfiere etc..
+  let transaccionfnc = async () => {
+    //const trx = Transaction.fromBytes();
+
+    // set provider user to make the transaction
+    let provider = hashconnect.getProvider(
+      "testnet",
+      saveData.topic,
+      saveData.pairedAccounts[0]
+    );
+
+    let balance = await provider.getAccountBalance(saveData.pairedAccounts[0]);
+    console.log("balance:", balance.toString());
+
+    setbalance(balance.hbars.toString());
+
+    let signer = hashconnect.getSigner(provider);
+    console.log("signer that hashpack see", signer, signer.getAccountId());
+
+    //* FIXME: RUN A BACKEND SERVICE THAT SEND THE WHOLE TRANSACTION ALREADY MADE AS BYTEARRAY, AND IT IS CONVERTED HERE, SIGNED AND EXECUTED
+    // const contractTransferTxClient = Transaction.fromBytes();  // THAT WAY WE DONT NEED PRIVATE KEY HERE
+
+    const contractTransferTxClient = new ContractExecuteTransaction()
+      .setContractId(process.env.REACT_APP_CONTRACTID!)
+      .setGas(3000000)
+      .setFunction(
+        "tokenTransfer",
+        new ContractFunctionParameters()
+          .addAddress(operatorId.toSolidityAddress())
+          .addAddress(aliceAccountId.toSolidityAddress())
+          //@ts-ignore
+          .addInt64(1)
+      )
+      .freezeWith(client);
+
+    //firma
+
+    console.log(`- contractTransferTxClient: ${contractTransferTxClient}`);
+
+    let res = await (
+      await contractTransferTxClient.executeWithSigner(signer)
+    ).getReceipt;
+
+    //const contractTransferReceipt = await res.getReceipt(client);
+
+    // console.log(
+    //   `- Token transfer from Treasury to Alice: ${contractTransferReceipt.status.toString()}`
+    // );
+
+    console.log(res);
+
+    // //Get the transaction ID
+    // const txId = submitTx.transactionId.toString();
+    // //Print the transaction ID to the console
+    // console.log("The transaction ID " + txId);
+
+    const aliceBalance = await queryAccountBalance(
+      aliceAccountId,
+      process.env.REACT_APP_TOKENID!
+    );
+
+    const treasuryBalance = await queryAccountBalance(
+      operatorId,
+      process.env.REACT_APP_TOKENID!
+    );
+    console.log(
+      `- Treasury balance: ${treasuryBalance} units of token ${process.env
+        .REACT_APP_TOKENID!}`
+    );
+    console.log(
+      `- Alice balance: ${aliceBalance} units of token ${process.env
+        .REACT_APP_TOKENID!} \n`
+    );
+
+    setalicebalance(aliceBalance!.toString());
+
+    settresurybalance(treasuryBalance!.toString());
+  };
+
   return (
     <div className="App">
-      <h1>web 3 frontend</h1>
-      <button onClick={transaccionfnc}>Ejecutar contrato y enviar NFT</button>
+      <Typography variant="h1" component="h2">
+        Web 3 Hbar NFT
+      </Typography>
+
+      <Button variant="contained" onClick={transaccionfnc}>
+        Execute smart contract and send NFT to "alice"
+      </Button>
+
+      <Typography variant="body1">
+        Browser account balance: {balance}
+      </Typography>
+
+      <Typography variant="body1">
+        NFT tresury account balance: {tresurybalance}
+      </Typography>
+
+      <Typography variant="body1">
+        NTF alice account balance: {alicebalance}
+      </Typography>
     </div>
   );
 }

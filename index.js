@@ -241,28 +241,22 @@ async function main() {
   console.log("---Finished Step 4---");
 
   //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  //* example transaction to freeze and run in the backend
+  //* example transaction to freeze and run in the backend and transfer as bytearray
 
-  const contractTransferTxClient = new ContractExecuteTransaction()
-    .setContractId(contractId)
-    .setGas(3000000)
-    .setFunction(
-      "tokenTransfer",
-      new ContractFunctionParameters()
-        .addAddress(operatorId.toSolidityAddress())
-        .addAddress(aliceAccountId.toSolidityAddress())
-        .addInt64(1)
-    )
-    .freezeWith(client);
+  // const contractTransferTxClient = new ContractExecuteTransaction()
+  //   .setContractId(contractId)
+  //   .setGas(3000000)
+  //   .setFunction(
+  //     "tokenTransfer",
+  //     new ContractFunctionParameters()
+  //       .addAddress(operatorId.toSolidityAddress())
+  //       .addAddress(aliceAccountId.toSolidityAddress())
+  //       .addInt64(1)
+  //   )
+  //   .freezeWith(client);
 
-  let transactionBytes = contractTransferTxClient.toBytes;
-  console.log("transaction freezed", transactionBytes);
-
-  // Buffer
-  var callback = (err) => {
-    if (err) throw err;
-    console.log("It's saved!");
-  };
+  // let transactionBytes = contractTransferTxClient.toBytes;
+  // console.log("transaction freezed", transactionBytes);
 
   // fs.writeFile("./", transactionBytes, "binary", (err) => {
   //   if (err) {
