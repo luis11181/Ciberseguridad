@@ -15,10 +15,13 @@ const {
   TokenUpdateTransaction,
   ContractExecuteTransaction,
   AccountCreateTransaction,
+  ContractId,
+  Transaction,
 } = require("@hashgraph/sdk");
 const fs = require("fs");
 
 const operatorId = AccountId.fromString(process.env.MY_ACCOUNT_ID);
+
 const operatorKey = PrivateKey.fromString(process.env.MY_PRIVATE_KEY);
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
@@ -237,6 +240,41 @@ async function main() {
 
   console.log("---Finished Step 4---");
 
+  //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  //* example transaction to freeze and run in the backend
+
+  const contractTransferTxClient = new ContractExecuteTransaction()
+    .setContractId(contractId)
+    .setGas(3000000)
+    .setFunction(
+      "tokenTransfer",
+      new ContractFunctionParameters()
+        .addAddress(operatorId.toSolidityAddress())
+        .addAddress(aliceAccountId.toSolidityAddress())
+        .addInt64(1)
+    )
+    .freezeWith(client);
+
+  let transactionBytes = contractTransferTxClient.toBytes;
+  console.log("transaction freezed", transactionBytes);
+
+  // Buffer
+  var callback = (err) => {
+    if (err) throw err;
+    console.log("It's saved!");
+  };
+
+  // fs.writeFile("./", transactionBytes, "binary", (err) => {
+  //   if (err) {
+  //     console.log("There was an error writing the image");
+  //   } else {
+  //     console.log("Written File :" + "./");
+  //   }
+  // });
+
+  // fs.writeFile("/trx.json", JSON.stringify(transaction, null, 2)).catch((err) =>
+  //   console.error("Failed to write file", err)
+  // );
   // ========================================
   // helper FUNCTIONS
 

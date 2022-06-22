@@ -2,17 +2,48 @@ import React from "react";
 import logo from "./logo.svg";
 import { HashConnect, HashConnectTypes, MessageTypes } from "hashconnect";
 import "./App.css";
+//import trx from "./trx.json";
+import {
+  Client,
+  AccountId,
+  PrivateKey,
+  Transaction,
+  ContractId,
+  ContractCreateTransaction,
+  ContractFunctionParameters,
+  TokenUpdateTransaction,
+  ContractExecuteTransaction,
+  AccountCreateTransaction,
+} from "@hashgraph/sdk";
 
 //! correr con ($env:HTTPS = "true") -and (npm start) en powershell para hacerlo con https
 function App() {
   //* codigo para corer wallet hedera
   let hashconnect: HashConnect;
 
-  let saveData = {
+  console.log(process.env.REACT_APP_ALICE_ACCOUNT_ID);
+
+  const aliceAccountId = AccountId.fromString(
+    process.env.REACT_APP_ALICE_ACCOUNT_ID!
+  );
+  const operatorId = AccountId.fromString(process.env.REACT_APP_MY_ACCOUNT_ID!);
+
+  const operatorKey = PrivateKey.fromString(
+    process.env.REACT_APP_MY_PRIVATE_KEY!
+  );
+  const client = Client.forTestnet().setOperator(operatorId, operatorKey);
+
+  let saveData: {
+    topic: string;
+    pairingString: string;
+    privateKey?: string;
+    pairedWalletData?: HashConnectTypes.WalletMetadata;
+    pairedAccounts: string[];
+  } = {
     topic: "",
     pairingString: "",
-    privateKey: "",
-    pairedWalletData: null,
+    privateKey: undefined,
+    pairedWalletData: undefined,
     pairedAccounts: [],
   };
 
@@ -31,6 +62,55 @@ function App() {
       saveData = JSON.parse(foundData);
       return true;
     } else return false;
+  };
+
+  let saveDataInLocalstorage = (saveData: {
+    topic: string;
+    pairingString: string;
+    privateKey?: string;
+    pairedWalletData?: HashConnectTypes.WalletMetadata;
+    pairedAccounts: string[];
+  }) => {
+    let data = JSON.stringify(saveData);
+
+    localStorage.setItem("hashconnectData", data);
+  };
+
+  let transaccionfnc = async () => {
+    //const trx = Transaction.fromBytes();
+    const contractId = ContractId.fromString("0.0.46041674");
+    // set provider user to make the transaction
+    let provider = hashconnect.getProvider(
+      "testnet",
+      saveData.topic,
+      saveData.pairedAccounts[0]
+    );
+
+    let balance = await provider.getAccountBalance(saveData.pairedAccounts[0]);
+    console.log(balance);
+
+    let signer = hashconnect.getSigner(provider);
+
+    const contractTransferTxClient = new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction(
+        "tokenTransfer",
+        new ContractFunctionParameters()
+          .addAddress(operatorId.toSolidityAddress())
+          .addAddress(aliceAccountId.toSolidityAddress())
+          .addInt8(1)
+      )
+      .freezeWith(client);
+
+    let res = await contractTransferTxClient.executeWithSigner(signer);
+
+    console.log(res);
+
+    // //Get the transaction ID
+    // const txId = submitTx.transactionId.toString();
+    // //Print the transaction ID to the console
+    // console.log("The transaction ID " + txId);
   };
 
   console.log("inicializo");
@@ -75,7 +155,8 @@ function App() {
 
       hashconnect.acknowledgeMessageEvent.once((acknowledgeData) => {
         //do something with acknowledge response data
-        console.log("acknowledge function");
+
+        console.log("acknowledge function", acknowledgeData);
       });
 
       hashconnect.connectToLocalWallet(saveData.pairingString);
@@ -91,25 +172,39 @@ function App() {
 
       //! repetir los pasos anteriores como si ya hubiese una conexion previa
 
-      await hashconnect.init(appMetadata, saveData.privateKey);
-      await hashconnect.connect(saveData.topic, saveData.pairedWalletData!); // da error si le entra null de argumento
+      hashconnect.pairingEvent.on((data) => {
+        console.log("Paired with wallet", data);
+        //status = "Paired";
 
-      console.log("saved data3", saveData);
+        saveData.pairedWalletData = data.metadata;
 
-      //find any supported local wallets
-      console.log("localwallets2:", hashconnect.findLocalWallets());
+        data.accountIds.forEach((id) => {
+          if (saveData.pairedAccounts.indexOf(id) == -1)
+            saveData.pairedAccounts.push(id);
+        });
+
+        console.log("saved data3", saveData);
+
+        //find any supported local wallets
+        console.log("localwallets2:", hashconnect.findLocalWallets());
+
+        saveDataInLocalstorage(saveData);
+      });
 
       console.log("finalizo conexion uneva con wallet");
     } else {
+      console.log("conecto con datos guardados");
       //use loaded data for initialization + connection
       await hashconnect.init(appMetadata, saveData.privateKey);
       await hashconnect.connect(saveData.topic, saveData.pairedWalletData!); // da error si le entra null de argumento
+      console.log("savedData", saveData);
     }
   })();
 
   return (
     <div className="App">
-      <div>web 3 frontend</div>
+      <h1>web 3 frontend</h1>
+      <button onClick={transaccionfnc}>Ejecutar contrato y enviar NFT</button>
     </div>
   );
 }
